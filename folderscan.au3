@@ -11,7 +11,7 @@
 #include <WinAPI.au3>
 
 ProcessSetPriority(@AutoItExe,1) ; Set process to below normal priority, so it won't steal too much CPU
-
+Global $hLog
 Global Const $_SysDate = _Date_Time_SystemTimeToDateStr(_Date_Time_GetSystemTime(),1)
 Const $_SysDateTime = @YEAR&@MON&@MDAY&@HOUR&@MIN&@SEC
 
@@ -22,13 +22,6 @@ Global Const $_LOGLEVEL = IniRead($ini,"Settings","Log","0")
 Global Const $_DeleteLevel = IniRead($ini,"Settings","DeleteLevel","Recycle")
 Global Const $_arFolderPaths = IniReadSection($ini,"FolderPaths")
 Global Const $_intOutdate = IniRead($ini,"Settings","outdate","15")
-Global $hLog
-
-if $_DeleteLevel="Delete" Then
-   Global Const $_deleteverb="deleting"
-else
-   Global Const $_deleteverb="recycling"
-EndIf
 
 if $_LOGLEVEL>0 then $hLog = FileOpen("log_"&$_SysDateTime&".txt",10)
 
@@ -39,19 +32,23 @@ EndIf
 
 ; here we go...
 for $i = 1 to $_arFolderPaths[0][0]
-	$folderpath = $_arFolderPaths[$i][1]
-	if StringRight($folderpath,1) <> "\" Then $folderpath = $folderpath & "\"
+   $folderpath = $_arFolderPaths[$i][1]
+   if StringRight($folderpath,1) <> "\" Then $folderpath = $folderpath & "\"
 
-	;get array of filetree
-	$files = _FileListToArrayRec($folderpath, "*", 0,1,1)
-	if $files="" and $_LOGLEVEL>0 Then
-	  _FileWriteLog($hLog,"Cannot get list of files, skipping to next folder. Error"&@extended&"::"&$folderpath)
+   ;get array of filetree
+   $files = _FileListToArrayRec($folderpath, "*", 0,1,1)
+   if $files="" and $_LOGLEVEL>0 Then
+	  if @extended=9 Then
+		 _FileWriteLog($hLog,$folderpath&" Folder empty. Skipping to next folder.")
+	  Else
+		 _FileWriteLog($hLog,$folderpath&" Cannot get list of files, skipping to next folder. Error"&@extended)
+	  EndIf
 	  ContinueLoop
-    Elseif $_LOGLEVEL>1 then
+   Elseif $_LOGLEVEL>1 then
 	  _FileWriteLog($hLog,"Traversing "& $folderpath)
-    EndIf
-	_ArrayReverse($files,1) ; reverse array, so it will be ordered as deepest directory first, allowing us to remove empty folders
-	if $_LOGLEVEL>1 then _FileWriteLog($hLog,"Got "&$files[0]&" files")
+	  _FileWriteLog($hLog,"Got "&$files[0]&" files")
+   EndIf
+   _ArrayReverse($files,1) ; reverse array, so it will be ordered as deepest directory first, allowing us to remove empty folders
 
 	for $j=1 to $files[0]
 
@@ -107,7 +104,7 @@ Func _DeleteItem($filepath)
    if $returncode=1 and $_LOGLEVEL>1 then
 	  _FileWriteLog($hLog,$_DeleteLevel&"d "& $filepath)
    elseif $_LOGLEVEL>0 then
-	  _FileWriteLog($hLog,"Error "&$_deleteverb&" "&$filepath)
+	  _FileWriteLog($hLog,"Error removing "&$filepath)
    EndIf
 
 EndFunc
